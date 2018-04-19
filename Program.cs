@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ConsoleApplication1
 {
@@ -6,43 +6,40 @@ namespace ConsoleApplication1
     {
         public static void Main()
         {
-            var s = Console.ReadLine();
-            Console.WriteLine(Calculation(s));
+            Console.WriteLine(Calculation(Console.ReadLine()));
         }
 
-        private static double Calculation(string s)
+        private static double Calculation(string s) //Калькулятор
         {
             s = '(' + s + ')';
-            var position = 0;
+            int pos = 0;
             object sign;
-            object lastSign = ' ';
+            object lastSign = ' '; 
             do
             {
-                sign = WorkStacks.GetSign(s, ref position);
+                sign = StacksWork.GetSign(s, ref pos);
                 if (sign is char c && lastSign is char && (char) lastSign == '(' && (c == '+' || c == '-'))
-                {
-                    WorkStacks.StackE.Push(0);
-                }
+                    StacksWork.MyStackE.Push(0);
 
                 switch (sign)
                 {
                     case double d:
-                        WorkStacks.StackE.Push(d);
+                        StacksWork.MyStackE.Push(d);
                         break;
                     case char _
                         :
                         if ((char) sign == ')')
                         {
-                            while (WorkStacks.StackT.Count > 0 && WorkStacks.StackT.Peek() != '(')
-                                WorkStacks.PopDe(WorkStacks.StackE, WorkStacks.StackT);
-                            WorkStacks.StackT.Pop();
+                            while (StacksWork.MyStackT.Count > 0 && StacksWork.MyStackT.Peek() != '(')
+                                StacksWork.PopDe(StacksWork.MyStackE, StacksWork.MyStackT);
+                            StacksWork.MyStackT.Pop();
                         }
                         else
                         {
-                            while (WorkStacks.CanBeenPop((char) sign, WorkStacks.StackT))
-                                WorkStacks.PopDe(WorkStacks.StackE, WorkStacks.StackT);
+                            while (StacksWork.CanPop((char) sign, StacksWork.MyStackT))
+                                StacksWork.PopDe(StacksWork.MyStackE, StacksWork.MyStackT);
 
-                            WorkStacks.StackT.Push((char) sign);
+                            StacksWork.MyStackT.Push((char) sign);
                         }
 
                         break;
@@ -51,19 +48,19 @@ namespace ConsoleApplication1
                 lastSign = sign;
             } while (sign != null);
 
-            if (WorkStacks.StackE.Count > 1 || WorkStacks.StackT.Count > 0)
-                throw new Exception("Ошибка в разборе выражения");
-            return WorkStacks.StackE.Pop();
+            if (StacksWork.MyStackE.Count > 1 || StacksWork.MyStackT.Count > 0)
+                throw new Exception("Parsing expression");
+            return StacksWork.MyStackE.Pop();
         }
 
-        public static char Read(string s, ref int pos)
+        public static char ReadDe(string s, ref int pos) //Считывание строки
         {
             return s[pos++];
         }
 
-        public static string ReadValue(string s, ref int pos)
+        public static string ReadValue(string s, ref int pos) //Считывание числа
         {
-            var res = "";
+            string res = "";
             while (pos < s.Length && (char.IsDigit(s[pos]) || s[pos] == '.'))
                 res += s[pos++];
 
@@ -71,47 +68,50 @@ namespace ConsoleApplication1
         }
     }
 
-    internal static class WorkStacks
+    internal static class StacksWork //Функции, работающие со стеками
     {
-        public static readonly Stack<double> StackE = new Stack<double>();
-        public static readonly Stack<char> StackT = new Stack<char>();
+        public static readonly MyStack<double> MyStackE = new MyStack<double>();
+        public static readonly MyStack<char> MyStackT = new MyStack<char>();
 
-        public static void PopDe(Stack<double> stackE, Stack<char> stackT)
+        public static void PopDe(MyStack<double> se, MyStack<char> st) //Функция выталкивания
         {
-            var b = stackE.Pop();
-            var a = stackE.Pop();
-            if (stackT.Pop() == '+')
-                stackE.Push(a + b);
-            else if (stackT.Pop() == '-')
+            double b = se.Pop();
+            double a = se.Pop();
+            switch (st.Pop())
             {
-                stackE.Push(a - b);
-            }
-            else if (stackT.Pop() == '*')
-            {
-                stackE.Push(a * b);
-            }
-            else if (stackT.Pop() == '/')
-            {
-                if (Math.Abs(b) < 1)
-                {
-                    throw new Exception("Деление на 0");
-                }
-
-                stackE.Push(a / b);
+                case '+':
+                    se.Push(a + b);
+                    break;
+                case '-':
+                    se.Push(a - b);
+                    break;
+                case '*':
+                    se.Push(a * b);
+                    break;
+                case '/':
+                    if (Math.Abs(b) < 1)
+                    {
+                        throw new Exception("Деление на 0");
+                    }
+                    else
+                    {
+                        se.Push(a / b);
+                        break;
+                    }
             }
         }
 
-        public static bool CanBeenPop(char op1, Stack<char> de1)
+        public static bool CanPop(char op1, MyStack<char> de1) //Проверка, можно ли вытолкунть операцию
         {
-            if (StackT.Count == 0)
+            if (MyStackT.Count == 0)
                 return false;
-            var p1 = GetPriority(op1);
-            var p2 = GetPriority(de1.Peek());
+            int p1 = GetPriority(op1);
+            int p2 = GetPriority(de1.Peek());
 
             return p1 >= 0 && p2 >= 0 && p1 >= p2;
         }
 
-        private static int GetPriority(char op)
+        private static int GetPriority(char op) //Расставление приоритетов операций
         {
             switch (op)
             {
@@ -124,43 +124,51 @@ namespace ConsoleApplication1
                 case '-':
                     return 2;
                 default:
-                    throw new Exception("Недопустимая операция");
+                    throw new Exception("Wrong operation");
             }
         }
 
-        public static object GetSign(string s, ref int pos)
+        public static object GetSign(string s, ref int pos) //Получение символа
         {
-            Probeli(s, ref pos);
+            Space(s, ref pos);
             if (pos == s.Length)
                 return null;
-            if (!char.IsDigit(s[pos])) return Program.Read(s, ref pos);
-            return Convert.ToDouble(Program.ReadValue(s, ref pos));
+            if (char.IsDigit(s[pos])) //Проверка, не является ли символ - числом
+                return Convert.ToDouble(Program.ReadValue(s, ref pos));
+            return Program.ReadDe(s, ref pos);
         }
 
-        private static void Probeli(string s, ref int pos)
+        private static void Space(string s, ref int pos) //Считывание всех пробелов 
         {
             while (pos < s.Length && char.IsWhiteSpace(s[pos]))
                 pos++;
         }
     }
 
-    public sealed class Stack<T> //Cтек, реализованный с помощью массива
+    public sealed class MyStack<T> //Стек, реализованный с помощью массива
     {
-        private T[] _array;
-        private const int DefaultSize = 10;
+        private T[] _array; //массив для хранения данных типа T
+        private const int DefaultSize = 10; //вместимость по умолчанию
 
-        public Stack()
+        public MyStack()
         {
             Count = 0;
             _array = new T [DefaultSize];
         }
+        
+        public int Count //вывод размера 
+        {
+            get;
+            private set;
+        }
 
-        public int Count { get; private set; }
-
-        public T Pop()
+        public T Pop() //метод взятия с вершины
         {
             if (Count == 0)
-                throw new InvalidOperationException();
+            {
+                throw new Exception("Stack is empty");
+            }
+
             return _array[--Count];
         }
 
@@ -168,18 +176,21 @@ namespace ConsoleApplication1
         {
             if (Count == _array.Length)
             {
-                var newArray = new T[2 * _array.Length];
+                T[] newArray = new T[2 * _array.Length];
                 Array.Copy(_array, 0, newArray, 0, Count);
                 _array = newArray;
             }
 
-            _array[Count++] = newElement;
+            _array[Count++] = newElement; //вставляем элемент
         }
 
         public T Peek()
         {
             if (Count == 0)
-                throw new InvalidOperationException();
+            {
+                throw new Exception("Stack is empty");
+            }
+
             return _array[Count - 1];
         }
     }
